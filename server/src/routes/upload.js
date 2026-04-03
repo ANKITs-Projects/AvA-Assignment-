@@ -1,4 +1,4 @@
-const express = require("express");
+const router = require("express").Router();
 const multer = require("multer");
 const fs = require("fs-extra");
 const path = require("path");
@@ -7,8 +7,8 @@ const pdf = require("pdf-poppler");
 
 const { extractText } = require("../services/ocrService");
 const { parseInvoice } = require("../services/llmService");
+const { supabase } = require("../services/supabaseClient");
 
-const router = express.Router();
 const upload = multer({ dest: "uploads/" });
 
 router.post("/", upload.single("file"), async (req, res) => {
@@ -20,43 +20,60 @@ router.post("/", upload.single("file"), async (req, res) => {
     const filePath = req.file.path;
     const fileType = req.file.mimetype;
 
+    const fileExt = req.file.originalname.split(".").pop();
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const fileBuffer = await fs.readFile(filePath);
+
+    const { error: uploadError } = await supabase.storage
+      .from("invoices")
+      .upload(fileName, fileBuffer, {
+        contentType: fileType,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: publicUrlData } = supabase.storage
+      .from("invoices")
+      .getPublicUrl(fileName);
+
+    const fileUrl = publicUrlData.publicUrl;
+
     let imagePath = filePath;
 
-    // 🟡 HANDLE PDF → CONVERT TO IMAGE
     if (fileType === "application/pdf") {
       const outputDir = path.join("uploads", uuidv4());
       await fs.ensureDir(outputDir);
 
-      const options = {
+      await pdf.convert(filePath, {
         format: "jpeg",
         out_dir: outputDir,
         out_prefix: "page",
-        page: 1, // first page (can extend later)
-      };
-
-      await pdf.convert(filePath, options);
+        page: 1,
+      });
 
       const files = await fs.readdir(outputDir);
       imagePath = path.join(outputDir, files[0]);
     }
 
-    // 🟢 HANDLE IMAGE (JPG / PNG)
-    // no change needed
-
-    // 🔍 OCR (works for both cases now)
     const rawText = await extractText(imagePath);
 
-    // 🤖 LLM
     const parsed = await parseInvoice(rawText);
+
+    await supabase.from("invoices").insert([
+      {
+        file_url: fileUrl,
+        ...parsed,
+      },
+    ]);
 
     res.json({
       success: true,
+      fileUrl,
       data: parsed,
     });
 
   } catch (err) {
-    console.error("❌ ERROR:", err);
-
+    console.error("ERROR:", err);
     res.status(500).json({
       success: false,
       message: err.message,

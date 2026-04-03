@@ -24,10 +24,9 @@ ${rawText}
 
   try {
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     let text = response.text();
 
-    // Clean markdown
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
     return JSON.parse(text);
