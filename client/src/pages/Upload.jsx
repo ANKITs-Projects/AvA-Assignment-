@@ -46,10 +46,10 @@ export default function Upload() {
         {result.length > 0 &&
           result.map((ele, i) => {
             return (
-              <div className="bg-zinc-300  text-zinc-950 rounded-2xl flex flex-col">
-                {Object.keys(ele).map((key) => {
+              <div key={i} className="bg-zinc-300  text-zinc-950 rounded-2xl flex flex-col">
+                {Object.keys(ele).map((key,i) => {
                   return (
-                    <div className="flex justify-evenly p-1">
+                    <div key={i} className="flex justify-evenly p-1">
                       <span className="w-[30%] text-start uppercase font-bold">
                         {key}
                       </span>{" "}
