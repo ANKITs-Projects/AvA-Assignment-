@@ -1,12 +1,12 @@
-import express from "express";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
-import pdf from "pdf-poppler";
+const express = require("express");
+const multer = require("multer");
+const fs = require("fs-extra");
+const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const pdf = require("pdf-poppler");
 
-import { extractText } from "../services/ocrService.js";
-import { parseInvoice } from "../services/llmService.js";
+const { extractText } = require("../services/ocrService");
+const { parseInvoice } = require("../services/llmService");
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
@@ -14,10 +14,7 @@ const upload = multer({ dest: "uploads/" });
 router.post("/", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded",
-      });
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
     const filePath = req.file.path;
@@ -25,29 +22,31 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     let imagePath = filePath;
 
-    // 🟡 STEP 1: Convert PDF → Image
+    // 🟡 HANDLE PDF → CONVERT TO IMAGE
     if (fileType === "application/pdf") {
       const outputDir = path.join("uploads", uuidv4());
-      fs.mkdirSync(outputDir, { recursive: true });
+      await fs.ensureDir(outputDir);
 
       const options = {
         format: "jpeg",
         out_dir: outputDir,
         out_prefix: "page",
-        page: 1, // only first page (you can extend later)
+        page: 1, // first page (can extend later)
       };
 
       await pdf.convert(filePath, options);
 
-      // pick first generated image
-      const files = fs.readdirSync(outputDir);
+      const files = await fs.readdir(outputDir);
       imagePath = path.join(outputDir, files[0]);
     }
 
-    // 🟢 STEP 2: OCR
+    // 🟢 HANDLE IMAGE (JPG / PNG)
+    // no change needed
+
+    // 🔍 OCR (works for both cases now)
     const rawText = await extractText(imagePath);
 
-    // 🔵 STEP 3: LLM
+    // 🤖 LLM
     const parsed = await parseInvoice(rawText);
 
     res.json({
@@ -65,4 +64,4 @@ router.post("/", upload.single("file"), async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,9 +1,9 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import uploadRoute from "./routes/upload.js";
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
 
-dotenv.config();
+const uploadRoute = require("./routes/upload");
+const analyticsRoute = require("./routes/analytics");
 
 const app = express();
 
@@ -11,9 +11,10 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/upload", uploadRoute);
+app.use("/analytics", analyticsRoute);
 
 app.get("/", (req, res) => {
-  res.json({ message: "Invoice AI Node Backend Running" });
+  res.json({ message: "Invoice AI Backend Running" });
 });
 
-export default app;
+module.exports = app;

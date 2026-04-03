@@ -1,6 +1,8 @@
-import Tesseract from "tesseract.js";
+const Tesseract = require("tesseract.js");
 
-export const extractText = async (imagePath) => {
+const extractText = async (imagePath) => {
   const { data } = await Tesseract.recognize(imagePath, "eng");
   return data.text;
 };
+
+module.exports = { extractText };
