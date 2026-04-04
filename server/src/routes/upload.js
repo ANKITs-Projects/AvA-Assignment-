@@ -32,12 +32,6 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     if (uploadError) throw uploadError;
 
-    const { data: publicUrlData } = supabase.storage
-      .from("invoices")
-      .getPublicUrl(fileName);
-
-    const fileUrl = publicUrlData.publicUrl;
-
     let imagePath = filePath;
 
     if (fileType === "application/pdf") {
@@ -59,16 +53,8 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     const parsed = await parseInvoice(rawText);
 
-    await supabase.from("invoices").insert([
-      {
-        file_url: fileUrl,
-        ...parsed,
-      },
-    ]);
-
     res.json({
       success: true,
-      fileUrl,
       data: parsed,
     });
 
